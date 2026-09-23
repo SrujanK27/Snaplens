@@ -72,8 +72,6 @@ exports.handler = async (event) => {
   }
 
   try {
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${API_KEY}`;
-
     const prompt = `You are an expert visual identification AI. Analyze this image and identify what is shown.
 
 Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
@@ -105,64 +103,88 @@ Be specific. For example, don't just say "dog" — say "Golden Retriever". Don't
       },
     });
 
-    const response = await geminiRequest(geminiUrl, postData);
+    const models = [
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
+      'gemini-1.5-flash-8b',
+      'gemini-2.0-flash-lite'
+    ];
+    
+    let lastError = 'Unable to analyze image. Please try again.';
 
-    if (response.status !== 200) {
-      console.error('Gemini API error:', response.status, response.body);
+    for (const model of models) {
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`;
       
-      // Parse actual error from Gemini for debugging
-      let geminiError = 'Unknown error';
-      try {
-        const errData = JSON.parse(response.body);
-        geminiError = errData?.error?.message || response.body.substring(0, 300);
-      } catch {
-        geminiError = response.body.substring(0, 300);
+      // Try up to 2 attempts per model for transient 503/429 errors
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (attempt > 0) {
+          // Brief pause before retry
+          await new Promise(r => setTimeout(r, 1000));
+        }
+
+        const response = await geminiRequest(geminiUrl, postData);
+
+        if (response.status === 200) {
+          const data = JSON.parse(response.body);
+          const textResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          
+          if (!textResponse) {
+            lastError = 'No description generated for this image. Please try another photo.';
+            break; // Try next model
+          }
+
+          let result;
+          try {
+            const cleaned = textResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+            result = JSON.parse(cleaned);
+          } catch {
+            result = {
+              name: 'Identified Object',
+              category: 'General',
+              description: textResponse.substring(0, 500),
+              details: [],
+              funFact: '',
+            };
+          }
+
+          return {
+            statusCode: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-store',
+            },
+            body: JSON.stringify(result),
+          };
+        }
+
+        // Handle error responses
+        try {
+          const errData = JSON.parse(response.body);
+          lastError = errData?.error?.message || `API Error (${response.status})`;
+        } catch {
+          lastError = response.body ? response.body.substring(0, 300) : `Error code ${response.status}`;
+        }
+
+        // If not a transient error (503/429/404), don't retry same model
+        if (response.status !== 503 && response.status !== 429) {
+          break;
+        }
       }
-      
-      return { statusCode: 502, body: JSON.stringify({ error: `Gemini API (${response.status}): ${geminiError}` }) };
-    }
-
-    const data = JSON.parse(response.body);
-
-    // Extract the text response
-    const textResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!textResponse) {
-      console.error('No text in Gemini response:', JSON.stringify(data));
-      return { statusCode: 502, body: JSON.stringify({ error: 'No response from AI. Please try a clearer image.' }) };
-    }
-
-    // Parse the JSON response from Gemini
-    let result;
-    try {
-      // Clean up potential markdown code fences
-      const cleaned = textResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      result = JSON.parse(cleaned);
-    } catch {
-      console.error('Failed to parse Gemini response:', textResponse);
-      // Fallback: return raw text as description
-      result = {
-        name: 'Identified Object',
-        category: 'Unknown',
-        description: textResponse.substring(0, 500),
-        details: [],
-        funFact: '',
-      };
     }
 
     return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-store',
-      },
-      body: JSON.stringify(result),
+      statusCode: 502,
+      body: JSON.stringify({
+        error: `AI Service busy (${lastError}). Please tap "Try Again".`
+      })
     };
 
   } catch (err) {
     console.error('Function error:', err.message, err.stack);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Internal server error: ' + err.message }),
+      body: JSON.stringify({ error: 'Error processing request: ' + err.message }),
     };
   }
 };
