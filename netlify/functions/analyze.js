@@ -72,7 +72,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${API_KEY}`;
 
     const prompt = `You are an expert visual identification AI. Analyze this image and identify what is shown.
 
