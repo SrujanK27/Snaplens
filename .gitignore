@@ -1,0 +1,12 @@
+# Dependency directory
+node_modules/
+
+# Environment variables
+.env
+
+# Netlify
+.netlify/
+
+# OS files
+.DS_Store
+Thumbs.db

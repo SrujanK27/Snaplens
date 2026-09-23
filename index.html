@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SnapLens — Instant Visual AI</title>
+  <meta name="description" content="Point your camera at anything and instantly identify it with AI. Free, fast, and private.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
+</head>
+<body>
+  <!-- Ambient background blobs -->
+  <div class="ambient">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
+
+  <div class="app" id="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <span class="logo-icon">◉</span>
+        <span class="logo-text">SnapLens</span>
+      </div>
+      <p class="tagline">Point. Snap. Know.</p>
+    </header>
+
+    <!-- Main action area -->
+    <main class="main" id="mainArea">
+      <!-- Action buttons -->
+      <div class="actions" id="actions">
+        <p class="actions-hint">Identify anything around you instantly</p>
+        <div class="btn-group">
+          <button class="btn btn-scan" id="btnScan" aria-label="Open camera to scan">
+            <span class="btn-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </span>
+            <span class="btn-label">Scan</span>
+            <span class="btn-sub">Open Camera</span>
+          </button>
+
+          <button class="btn btn-gallery" id="btnGallery" aria-label="Pick image from gallery">
+            <span class="btn-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+            </span>
+            <span class="btn-label">Gallery</span>
+            <span class="btn-sub">Pick Photo</span>
+          </button>
+        </div>
+        <!-- Hidden file inputs -->
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden>
+        <input type="file" id="galleryInput" accept="image/*" hidden>
+      </div>
+
+      <!-- Preview & Results -->
+      <div class="result-area hidden" id="resultArea">
+        <div class="preview-card" id="previewCard">
+          <img id="previewImg" alt="Captured image preview">
+          <button class="btn-close" id="btnClose" aria-label="Close and go back">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Loading state -->
+        <div class="analysis-loading" id="analysisLoading">
+          <div class="pulse-ring"></div>
+          <p>Analyzing image…</p>
+        </div>
+
+        <!-- Results card -->
+        <div class="results-card hidden" id="resultsCard">
+          <div class="result-header">
+            <span class="result-badge" id="resultCategory">—</span>
+            <h2 class="result-name" id="resultName">—</h2>
+          </div>
+          <div class="result-body" id="resultBody">
+            <!-- Filled by JS -->
+          </div>
+          <button class="btn btn-again" id="btnAgain">
+            <span>Scan Again</span>
+          </button>
+        </div>
+
+        <!-- Error state -->
+        <div class="error-card hidden" id="errorCard">
+          <p class="error-icon">⚠️</p>
+          <p class="error-msg" id="errorMsg">Something went wrong.</p>
+          <button class="btn btn-again" id="btnRetry">Try Again</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>Your images are never stored. Analysis happens in real-time and data is discarded immediately.</p>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
