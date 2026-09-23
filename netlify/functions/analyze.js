@@ -4,10 +4,41 @@
  * SECURITY:
  * - API key stored as env var, never exposed to client
  * - Input validation (size, type)
- * - Rate limiting via response headers
- * - CORS restricted
  * - No image persistence
  */
+
+const https = require('https');
+
+function geminiRequest(url, postData) {
+  return new Promise((resolve, reject) => {
+    const parsedUrl = new URL(url);
+    const options = {
+      hostname: parsedUrl.hostname,
+      path: parsedUrl.pathname + parsedUrl.search,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData),
+      },
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        resolve({ status: res.statusCode, body: data });
+      });
+    });
+
+    req.on('error', (err) => reject(err));
+    req.setTimeout(25000, () => {
+      req.destroy();
+      reject(new Error('Request timed out'));
+    });
+    req.write(postData);
+    req.end();
+  });
+}
 
 exports.handler = async (event) => {
   // Only allow POST
@@ -56,43 +87,44 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
 
 Be specific. For example, don't just say "dog" — say "Golden Retriever". Don't just say "flower" — say "Sunflower (Helianthus annuus)". Include useful details like origin, uses, characteristics, or notable features.`;
 
-    const response = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: prompt },
-            {
-              inlineData: {
-                mimeType: 'image/jpeg',
-                data: image,
-              },
+    const postData = JSON.stringify({
+      contents: [{
+        parts: [
+          { text: prompt },
+          {
+            inlineData: {
+              mimeType: 'image/jpeg',
+              data: image,
             },
-          ],
-        }],
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 1024,
-        },
-      }),
+          },
+        ],
+      }],
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 1024,
+      },
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error('Gemini API error:', response.status, errText);
+    const response = await geminiRequest(geminiUrl, postData);
+
+    if (response.status !== 200) {
+      console.error('Gemini API error:', response.status, response.body);
       
       if (response.status === 429) {
         return { statusCode: 429, body: JSON.stringify({ error: 'Too many requests. Please wait a moment and try again.' }) };
       }
+      if (response.status === 400) {
+        return { statusCode: 400, body: JSON.stringify({ error: 'Invalid API key or request. Please check your GEMINI_API_KEY.' }) };
+      }
       return { statusCode: 502, body: JSON.stringify({ error: 'AI service temporarily unavailable. Please try again.' }) };
     }
 
-    const data = await response.json();
+    const data = JSON.parse(response.body);
 
     // Extract the text response
     const textResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!textResponse) {
+      console.error('No text in Gemini response:', JSON.stringify(data));
       return { statusCode: 502, body: JSON.stringify({ error: 'No response from AI. Please try a clearer image.' }) };
     }
 
@@ -124,10 +156,10 @@ Be specific. For example, don't just say "dog" — say "Golden Retriever". Don't
     };
 
   } catch (err) {
-    console.error('Function error:', err);
+    console.error('Function error:', err.message, err.stack);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Internal server error. Please try again.' }),
+      body: JSON.stringify({ error: 'Internal server error: ' + err.message }),
     };
   }
 };
