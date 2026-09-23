@@ -110,13 +110,16 @@ Be specific. For example, don't just say "dog" — say "Golden Retriever". Don't
     if (response.status !== 200) {
       console.error('Gemini API error:', response.status, response.body);
       
-      if (response.status === 429) {
-        return { statusCode: 429, body: JSON.stringify({ error: 'Too many requests. Please wait a moment and try again.' }) };
+      // Parse actual error from Gemini for debugging
+      let geminiError = 'Unknown error';
+      try {
+        const errData = JSON.parse(response.body);
+        geminiError = errData?.error?.message || response.body.substring(0, 300);
+      } catch {
+        geminiError = response.body.substring(0, 300);
       }
-      if (response.status === 400) {
-        return { statusCode: 400, body: JSON.stringify({ error: 'Invalid API key or request. Please check your GEMINI_API_KEY.' }) };
-      }
-      return { statusCode: 502, body: JSON.stringify({ error: 'AI service temporarily unavailable. Please try again.' }) };
+      
+      return { statusCode: 502, body: JSON.stringify({ error: `Gemini API (${response.status}): ${geminiError}` }) };
     }
 
     const data = JSON.parse(response.body);
